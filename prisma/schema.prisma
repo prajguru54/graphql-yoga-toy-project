@@ -16,11 +16,22 @@ model Link {
   description String
   url         String
   Comment     Comment[]
+  authorId    Int
+  Author      Author?   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model Comment {
   id     Int    @id @default(autoincrement())
   body   String
   linkId Int?
-  link   Link?  @relation(fields: [linkId], references: [id])
+  link   Link?  @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  authorId    Int
+  Author      Author?   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Author {
+  id    Int    @id @default(autoincrement())
+  name  String
+  links Link[]
+  comments Comment[]
 }
