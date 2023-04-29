@@ -1,5 +1,5 @@
 import { makeExecutableSchema } from "@graphql-tools/schema";
-import { Comment, Link, Author } from "@prisma/client";
+import { Author, Comment, Link } from "@prisma/client";
 import { GraphQLContext } from "./context";
 
 const typeDefinitions = /* GraphQL */ `
@@ -20,14 +20,14 @@ const typeDefinitions = /* GraphQL */ `
         id: ID!
         description: String!
         url: String!
-        comment: [Comment!]
-        authorId: ID!
+        comments: [Comment!]
+        author: Author!
     }
     type Comment {
         id: ID!
         body: String!
-        linkId: Int!
-        authorId: Int!
+        link: Link
+        author: Author!
     }
 
     type Author {
@@ -60,14 +60,63 @@ const resolvers = {
         id: (parent: Link) => parent.id,
         description: (parent: Link) => parent.description,
         url: (parent: Link) => parent.url,
-        authorId:(parent:Link) => parent.authorId,
+        author: (parent: Link, args: {}, context: GraphQLContext) =>
+            context.prisma.author.findUnique({
+                where: {
+                    id: parent.authorId,
+                },
+            }),
+        comments: (parent: Author, args: {}, context: GraphQLContext) => {
+            context.prisma.comment.findMany({
+                where: {
+                    linkId: parent.id,
+                },
+            }); // Not working
+        },
     },
     Comment: {
         id: (parent: Comment) => parent.id,
         body: (parent: Comment) => parent.body,
-        linkId: (parent: Comment) => parent.linkId,
-        authorId:(parent:Comment) => parent.authorId,
+        author: (parent: Comment, args: {}, context: GraphQLContext) =>
+            context.prisma.author.findUnique({
+                where: {
+                    id: parent.authorId,
+                },
+            }),
+        link: (parent: Comment, args: {}, context: GraphQLContext) => {
+            console.log(`linkedId: ${parent.linkId}`);
+            // Adding this just to eliminate typing error, 
+            // not sure why it's throwing the typing error
+            if (!parent.linkId) {
+                console.log(`linkedId: ${parent.linkId}`);
+                return null;
+            } 
+            return context.prisma.link.findUnique({
+                where: {
+                    id: parent.linkId,
+                },
+            });
+        },
     },
+    Author: {
+        id: (parent: Author) => parent.id,
+        name: (parent: Author) => parent.name,
+        links: (parent: Author, args: {}, context: GraphQLContext) => {
+            return context.prisma.link.findMany({
+                where: {
+                    authorId: parent.id,
+                },
+            }); 
+        },
+        comments: (parent: Author, args: {}, context: GraphQLContext) => {
+            return context.prisma.comment.findMany({
+                where: {
+                    authorId: parent.id,
+                },
+            }); 
+        },
+    },
+
     Mutation: {
         async createLink(
             parent: unknown,
